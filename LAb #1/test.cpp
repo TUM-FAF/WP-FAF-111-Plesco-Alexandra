@@ -123,7 +123,7 @@ LRESULT CALLBACK MyWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                                 (DWORD) NULL,
                                TEXT("listbox"),                              // The class name required is edit
                                TEXT(""),                                 // Default text.
-                               WS_VISIBLE | WS_CHILD | WS_BORDER |  WS_VSCROLL |ES_MULTILINE | ES_AUTOHSCROLL |ES_READONLY , // the styles
+                               WS_VISIBLE | WS_CHILD |WS_VSCROLL |LBS_NOINTEGRALHEIGHT |ES_READONLY|WS_HSCROLL , // the styles
                                5, 5,                                      // the left and top co-ordinates
                                280,220,                                  // width and height
                                hwnd,                                     // parent window handle
@@ -146,8 +146,8 @@ LRESULT CALLBACK MyWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                                         
                     //SendDlgItemMessage(hwnd,ID_MYTEXT1,LB_ADDSTRING,0,(LPARAM)message);
 
-                    SendMessage(hwndText,WM_SETTEXT,NULL, (LPARAM)"");
-                    SendMessage(hwndText,LB_ADDSTRING,0, (LPARAM)message);  //curata fereastra
+                    SendMessage(hwndText1,LB_ADDSTRING,0, (LPARAM)message);  
+                    SendMessage(hwndText,WM_SETTEXT,NULL, (LPARAM)"");  //curata fereastra
                  
                     
                     RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ERASE);
