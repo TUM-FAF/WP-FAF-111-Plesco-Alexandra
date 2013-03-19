@@ -5,17 +5,17 @@
 Advanced Form Elements. Child Windowses. Basics of Working With Keyboard.
 ############
 #Contents
-THe keyboard
-Scroll Bar
-Listbox
-Menus and Other Resources
-Dialog Box
+*THe keyboard
+*Scroll Bar
+*Listbox
+*Menus and Other Resources
+*Dialog Box
 
 #Mandatory Objectives (completed)
--Display a dialog box on some event.
--Add a system menu to your application with at least 2 items
--Add a scroll bar 
---Hook keyboard input.Add 1 custom event for 1 keyboard  and clicked to button to change background color 
+*Display a dialog box on some event.
+*Add a system menu to your application with at least 2 items
+*Add a scroll bar 
+*Hook keyboard input.Add 1 custom event for 1 keyboard  and clicked to button to change background color 
 
 ### Additional Purposes
 * Add a listbox and attach some event when any element is accessed (double-clicked) **(2 pt)**
