@@ -24,7 +24,6 @@
 ## Completed Objectives With Points
 * Make elements to interact or change other elements (1 pt for 2 different interactions) **(0-2 pt)**
 * Change behavior of different window actions (at least 3) **(1pt)**
-
 ## The application creation steps
 
 First of all i set my mac os in such way that i may run the .exe program for Windows users.
