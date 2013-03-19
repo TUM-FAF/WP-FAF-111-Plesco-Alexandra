@@ -1,14 +1,15 @@
-# Windows Programming Laboratory WOrk #2
+# Windows Programming Laboratory Work #2
 ###### student gr. FAF-111: Plesco Alexandra
 
-Title
+#Title
+Advanced Form Elements. Child Windowses. Basics of Working With Keyboard.
 ############
 #Contents
--THe keyboard
--Scroll Bar
--Listbox
--Menus and Other Resources
--Dialog Box
+THe keyboard
+Scroll Bar
+Listbox
+Menus and Other Resources
+Dialog Box
 
 #Mandatory Objectives (completed)
 -Display a dialog box on some event.
