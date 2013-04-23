@@ -30,4 +30,8 @@ Basics of Working with Mouse. GDI Primitives. Bezier Curve.
 ----------------------------
 I started to work to my application more complicated than previous but very interesting because of features . Some references a got from Petzold ,http://www.functionx.com/win32 and from my colleagues. I used many new things in my laboratory work for example adding bitmap image , working with mouse clicking ,drawing elements .
 
-![Result] 
+![Result] https://github.com/TUM-FAF/WP-FAF-111-Plesco-Alexandra/blob/master/Lab%233/lab3.png
+## Outro
+--------
+
+This laboratory was something new for me. For me the hardest part of this was Bezier curve and line .After many failures I did that. 
