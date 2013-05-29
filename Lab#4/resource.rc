@@ -57,7 +57,7 @@ END
 // Bitmap
 //
 
-IDB_BALL                BITMAP  DISCARDABLE     "ball.bmp"
+IDB_BALL                  BITMAP  DISCARDABLE     "ball.bmp"
 #endif    // English (Canada) resources
 /////////////////////////////////////////////////////////////////////////////
 
@@ -72,4 +72,5 @@ IDB_BALL                BITMAP  DISCARDABLE     "ball.bmp"
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
+
 

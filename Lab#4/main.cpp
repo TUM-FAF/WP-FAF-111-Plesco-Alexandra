@@ -1,238 +1,364 @@
 #include <windows.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <tchar.h>
+#include <assert.h>
+#include <windowsx.h>
 #include "resource.h"
 
-const char g_szClassName[] = "myWindowClass";
+const char g_szClassName[] = "Animation Problem";
 const int ID_TIMER = 1;
 
-const int BALL_MOVE_DELTA = 2;
+//Speed and ball number controllers
+int iBallSpeed = 1;
+int iMousePositionX = 1;
+int iMousePositionY = 1;
 
-typedef struct _BALLINFO
-{
-	int width;
-	int height;
-	int x;
-	int y;
+int iNumberOfBalls  = 0;
+int iNumberOfClicks = 0;
+bool bNumberOfBallsChanged;
 
-	int dx;
-	int dy;
-}BALLINFO;
+int iTimerOfRefresh = 25;
 
-BALLINFO g_ballInfo;
-HBITMAP g_hbmBall = NULL;
-HBITMAP g_hbmMask = NULL;
+HINSTANCE hInst;
 
-HBITMAP CreateBitmapMask(HBITMAP hbmColour, COLORREF crTransparent)
-{
-	HDC hdcMem, hdcMem2;
-	HBITMAP hbmMask;
-	BITMAP bm;
+//Ball structure with all the manipulation data
+typedef struct BALLINFO {
+  int width;
+  int height;
+  int x;
+  int y;
 
-	GetObject(hbmColour, sizeof(BITMAP), &bm);
-	hbmMask = CreateBitmap(bm.bmWidth, bm.bmHeight, 1, 1, NULL);
+  int dx;
+  int dy;
+  bool empty = true;
+} BALLINFO;
 
-	hdcMem = CreateCompatibleDC(0);
-	hdcMem2 = CreateCompatibleDC(0);
+//bitmap arrays containing bitmaps and their data
+BALLINFO BallInfo[10];
+HBITMAP  hbmBall[10];
+HBITMAP  hbmMask[10];
 
-	SelectObject(hdcMem, hbmColour);
-	SelectObject(hdcMem2, hbmMask);
+//All the functions used
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+HBITMAP CreateBitmapMask(HBITMAP, COLORREF);
+void DrawBall(HDC, RECT*);
+void UpdateBall(RECT*);
+bool valueInRange(int, int, int);
+bool rectOverlap(BALLINFO, BALLINFO);
+void AddOneBall();
+void ShiftBallsInArray ();
 
-	SetBkColor(hdcMem, crTransparent);
-
-	BitBlt(hdcMem2, 0, 0, bm.bmWidth, bm.bmHeight, hdcMem, 0, 0, SRCCOPY);
-
-	BitBlt(hdcMem, 0, 0, bm.bmWidth, bm.bmHeight, hdcMem2, 0, 0, SRCINVERT);
-
-	DeleteDC(hdcMem);
-	DeleteDC(hdcMem2);
-
-	return hbmMask;
-}
-
-void DrawBall(HDC hdc, RECT* prc)
-{
-	HDC hdcBuffer = CreateCompatibleDC(hdc);
-	HBITMAP hbmBuffer = CreateCompatibleBitmap(hdc, prc->right, prc->bottom);
-	HBITMAP hbmOldBuffer = (HBITMAP)SelectObject(hdcBuffer, hbmBuffer);
-
-	HDC hdcMem = CreateCompatibleDC(hdc);
-	HBITMAP hbmOld = (HBITMAP)SelectObject(hdcMem, g_hbmMask);
-
-	FillRect(hdcBuffer, prc, (HBRUSH)GetStockObject(WHITE_BRUSH));
-
-	BitBlt(hdcBuffer, g_ballInfo.x, g_ballInfo.y, g_ballInfo.width, g_ballInfo.height, hdcMem, 0, 0, SRCAND);
-
-	SelectObject(hdcMem, g_hbmBall);
-	BitBlt(hdcBuffer, g_ballInfo.x, g_ballInfo.y, g_ballInfo.width, g_ballInfo.height, hdcMem, 0, 0, SRCPAINT);
-
-	BitBlt(hdc, 0, 0, prc->right, prc->bottom, hdcBuffer, 0, 0, SRCCOPY);
-
-	SelectObject(hdcMem, hbmOld);
-	DeleteDC(hdcMem);
-
-	SelectObject(hdcBuffer, hbmOldBuffer);
-	DeleteDC(hdcBuffer);
-	DeleteObject(hbmBuffer);
-}
-
-void UpdateBall(RECT* prc)
-{
-	g_ballInfo.x += g_ballInfo.dx;
-	g_ballInfo.y += g_ballInfo.dy;
-
-	if(g_ballInfo.x < 0)
-	{
-		g_ballInfo.x = 0;
-		g_ballInfo.dx = BALL_MOVE_DELTA;
-	}
-	else if(g_ballInfo.x + g_ballInfo.width > prc->right)
-	{
-		g_ballInfo.x = prc->right - g_ballInfo.width;
-		g_ballInfo.dx = -BALL_MOVE_DELTA;
-	}
-
-	if(g_ballInfo.y < 0)
-	{
-		g_ballInfo.y = 0;
-		g_ballInfo.dy = BALL_MOVE_DELTA;
-	}
-	else if(g_ballInfo.y + g_ballInfo.height > prc->bottom)
-	{
-		g_ballInfo.y = prc->bottom - g_ballInfo.height;
-		g_ballInfo.dy = -BALL_MOVE_DELTA;
-	}
-}
-
-LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    HDC hdc;
-    HBRUSH NewBrush;
-    PAINTSTRUCT ps;
-	switch(msg)
-	{
-		case WM_CREATE:
-		{
-			UINT ret;
-			BITMAP bm;
-
-			g_hbmBall = LoadBitmap(GetModuleHandle(NULL), MAKEINTRESOURCE(IDB_BALL));
-			if(g_hbmBall == NULL)
-				MessageBox(hwnd, "Could not load IDB_BALL!", "Error", MB_OK | MB_ICONEXCLAMATION);
-
-			g_hbmMask = CreateBitmapMask(g_hbmBall, RGB(0, 0, 0));
-			if(g_hbmMask == NULL)
-				MessageBox(hwnd, "Could not create mask!", "Error", MB_OK | MB_ICONEXCLAMATION);
-
-			GetObject(g_hbmBall, sizeof(bm), &bm);
-
-			ZeroMemory(&g_ballInfo, sizeof(g_ballInfo));
-			g_ballInfo.width = bm.bmWidth;
-			g_ballInfo.height = bm.bmHeight;
-
-			g_ballInfo.dx = BALL_MOVE_DELTA;
-			g_ballInfo.dy = BALL_MOVE_DELTA;
-
-			ret = SetTimer(hwnd, ID_TIMER, 50, NULL);
-			if(ret == 0)
-				MessageBox(hwnd, "Could not SetTimer()!", "Error", MB_OK | MB_ICONEXCLAMATION);
-		}
-		break;
-		case WM_CLOSE:
-			DestroyWindow(hwnd);
-		break;
-		case WM_PAINT:
-		{
-			RECT rcClient;
-			PAINTSTRUCT ps;
-			HDC hdc = BeginPaint(hwnd, &ps);
-
-            NewBrush = CreateSolidBrush(RGB(250, 25, 5));
-
-            SelectObject(hdc, NewBrush);
-            Rectangle(hdc, 20, 20, 20, 20);
-            DeleteObject(NewBrush);
-
-			GetClientRect(hwnd, &rcClient);
-			DrawBall(hdc, &rcClient);
-
-			EndPaint(hwnd, &ps);
-		}
-		break;
-		case WM_TIMER:
-		{
-			RECT rcClient;
-			HDC hdc = GetDC(hwnd);
-
-			GetClientRect(hwnd, &rcClient);
-
-			UpdateBall(&rcClient);
-			DrawBall(hdc, &rcClient);
-
-			ReleaseDC(hwnd, hdc);
-		}
-		break;
-		case WM_DESTROY:
-			KillTimer(hwnd, ID_TIMER);
-
-			DeleteObject(g_hbmBall);
-			DeleteObject(g_hbmMask);
-
-			PostQuitMessage(0);
-		break;
-		default:
-			return DefWindowProc(hwnd, msg, wParam, lParam);
-	}
-	return 0;
-}
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-	LPSTR lpCmdLine, int nCmdShow)
-{
-	WNDCLASSEX wc;
-	HWND hwnd;
-	MSG Msg;
+  LPSTR lpCmdLine, int nCmdShow) {
 
-	wc.cbSize		 = sizeof(WNDCLASSEX);
-	wc.style		 = 0;
-	wc.lpfnWndProc	 = WndProc;
-	wc.cbClsExtra	 = 0;
-	wc.cbWndExtra	 = 0;
-	wc.hInstance	 = hInstance;
-	wc.hIcon		 = LoadIcon(NULL, IDI_APPLICATION);
-	wc.hCursor		 = LoadCursor(NULL, IDC_ARROW);
-	wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
-	wc.lpszMenuName  = NULL;
-	wc.lpszClassName = g_szClassName;
-	wc.hIconSm		 = LoadIcon(NULL, IDI_APPLICATION);
+  WNDCLASSEX wc;
+  HWND hwnd;
+  MSG Msg;
+  hInst           = hInstance;
 
-	if(!RegisterClassEx(&wc))
-	{
-		MessageBox(NULL, "Window Registration Failed!", "Error!",
-			MB_ICONEXCLAMATION | MB_OK);
-		return 0;
-	}
+  wc.cbSize        = sizeof(WNDCLASSEX);
+  wc.style         = 0;
+  wc.lpfnWndProc   = WndProc;
+  wc.cbClsExtra    = 0;
+  wc.cbWndExtra    = 0;
+  wc.hInstance     = hInstance;
+  wc.hIcon         = LoadIcon(NULL, IDI_APPLICATION);
+  wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+  wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
+  wc.lpszMenuName  = NULL;
+  wc.lpszClassName = g_szClassName;
+  wc.hIconSm       = LoadIcon(NULL, IDI_APPLICATION);
 
-	hwnd = CreateWindowEx(
-		WS_EX_CLIENTEDGE,
-		g_szClassName,
-		"An Animation Program",
-		WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT, CW_USEDEFAULT, 320, 240,
-		NULL, NULL, hInstance, NULL);
+  if(!RegisterClassEx(&wc)) {
+    MessageBox(NULL, "Window Registration Failed!", "Error!",
+        MB_ICONEXCLAMATION | MB_OK);
+    return 0;
+  }
 
-	if(hwnd == NULL)
-	{
-		MessageBox(NULL, "Window Creation Failed!", "Error!",
-			MB_ICONEXCLAMATION | MB_OK);
-		return 0;
-	}
+  hwnd = CreateWindowEx(
+      WS_EX_CLIENTEDGE,
+      g_szClassName,
+      "Animation problem",
+      WS_OVERLAPPEDWINDOW,
+      CW_USEDEFAULT, CW_USEDEFAULT, 320, 240,
+      NULL, NULL, hInstance, NULL);
 
-	ShowWindow(hwnd, nCmdShow);
-	UpdateWindow(hwnd);
+  if(hwnd == NULL) {
+    MessageBox(NULL, "Window Creation Failed!", "Error!",
+        MB_ICONEXCLAMATION | MB_OK);
+    return 0;
+  }
 
-	while(GetMessage(&Msg, NULL, 0, 0) > 0)
-	{
-		TranslateMessage(&Msg);
-		DispatchMessage(&Msg);
-	}
-	return Msg.wParam;
+  ShowWindow(hwnd, nCmdShow);
+  UpdateWindow(hwnd);
+
+  while(GetMessage(&Msg, NULL, 0, 0) > 0) {
+    TranslateMessage(&Msg);
+    DispatchMessage(&Msg);
+  }
+  return Msg.wParam;
+}
+
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+
+     static int  iMousePositionX = 1;
+     static int  iMousePositionY = 1;
+            HDC  hdc;
+            RECT rcClient;
+
+  switch(msg) {
+
+
+    case WM_CLOSE:
+      DestroyWindow(hwnd);
+      break;
+
+
+    case WM_LBUTTONDOWN: {
+        UINT ret;
+        BITMAP bm;
+        int i;
+
+        //Drow the first ball at mouse position
+        if(iNumberOfBalls < 1) {
+
+          //Get mouse position
+          iMousePositionX = GET_X_LPARAM(lParam);
+          iMousePositionY = GET_Y_LPARAM(lParam);
+
+          //Add a new bitmap to be drown in the cycle
+          iNumberOfBalls  += 1;
+          RedrawWindow(hwnd, NULL, NULL, true);
+        }
+    }
+      break;
+
+
+    case WM_PAINT: {
+
+        PAINTSTRUCT ps;
+        UINT ret;
+        BITMAP bm;
+
+        hdc = BeginPaint(hwnd, &ps);
+
+        // Load the bitmaps from the resources
+        hbmBall[iNumberOfBalls] = LoadBitmap(hInst, MAKEINTRESOURCE(IDB_BALL));
+        if(hbmBall[iNumberOfBalls] == NULL)
+          MessageBox(hwnd, "Could not load BALL!", "Error", MB_OK | MB_ICONEXCLAMATION);
+
+        //Create a mask for every bitmap loaded
+        hbmMask[iNumberOfBalls] = CreateBitmapMask(hbmBall[iNumberOfBalls], RGB(0, 0, 0));
+        if(hbmMask[iNumberOfBalls] == NULL)
+          MessageBox(hwnd, "Could not create mask!", "Error", MB_OK | MB_ICONEXCLAMATION);
+
+        GetObject(hbmBall[iNumberOfBalls], sizeof(bm), &bm);
+
+        //ZeroMemory(&BallInfo[iNumberOfBalls], sizeof(BallInfo[iNumberOfBalls]));
+        BallInfo[iNumberOfBalls].width = bm.bmWidth;
+        BallInfo[iNumberOfBalls].height = bm.bmHeight;
+
+        //Draw only the first ball under the cursor
+        if(iNumberOfBalls <= 1) {BallInfo[iNumberOfBalls].x = iMousePositionX;}
+        if(iNumberOfBalls <= 1) {BallInfo[iNumberOfBalls].y = iMousePositionY;}
+
+        //Givi the speed of the first ball
+        if(iNumberOfBalls <= 1) {BallInfo[iNumberOfBalls].dx = iBallSpeed;}
+        if(iNumberOfBalls <= 1) {BallInfo[iNumberOfBalls].dy = iBallSpeed;}
+
+       //Set Timer
+        ret = SetTimer(hwnd, ID_TIMER, iTimerOfRefresh, NULL);
+        if(ret == 0)
+          MessageBox(hwnd, "Could not SetTimer()!", "Error", MB_OK | MB_ICONEXCLAMATION);
+
+        EndPaint(hwnd, &ps);
+      }
+      break;
+
+
+    case WM_TIMER:{
+
+        if(bNumberOfBallsChanged == true){
+            //Redrow the new ball along with the existing ones
+            RedrawWindow(hwnd, NULL, NULL, true);
+            bNumberOfBallsChanged = false;
+        }
+
+        hdc = GetDC(hwnd);
+
+        GetClientRect(hwnd, &rcClient);
+        UpdateBall(&rcClient);
+        DrawBall(hdc, &rcClient);
+
+        ReleaseDC(hwnd, hdc);
+      }
+      break;
+
+      case WM_MOUSEWHEEL:{
+
+        if(iTimerOfRefresh >=1 && iTimerOfRefresh <= 100){
+        ((short) HIWORD(wParam)< 0) ? iTimerOfRefresh+=5 : iTimerOfRefresh-=5;
+
+        //Prevent the speed control to block
+        if(iTimerOfRefresh <= 0){iTimerOfRefresh = 1;}
+        if(iTimerOfRefresh >= 100){iTimerOfRefresh = 99;}
+
+        //Update on timer
+        KillTimer(hwnd, ID_TIMER);
+
+        SetTimer(hwnd, ID_TIMER, iTimerOfRefresh, NULL);
+        }
+
+      }
+      break;
+
+
+    case WM_DESTROY:
+      KillTimer(hwnd, ID_TIMER);
+      for(int i = 1; i <= iNumberOfBalls; i ++){
+        DeleteObject(hbmBall[i]);
+        DeleteObject(hbmMask[i]);
+      }
+
+      PostQuitMessage(0);
+      break;
+
+
+    default:
+      return DefWindowProc(hwnd, msg, wParam, lParam);
+  }
+
+
+  return 0;
+}
+
+
+HBITMAP CreateBitmapMask(HBITMAP hbmColour, COLORREF crTransparent) {
+  HDC hdcMem, hdcMem2;
+  HBITMAP hbmMask;
+  BITMAP bm;
+
+  GetObject(hbmColour, sizeof(BITMAP), &bm);
+  hbmMask = CreateBitmap(bm.bmWidth, bm.bmHeight, 1, 1, NULL);
+
+  hdcMem = CreateCompatibleDC(0);
+  hdcMem2 = CreateCompatibleDC(0);
+
+  SelectObject(hdcMem, hbmColour);
+  SelectObject(hdcMem2, hbmMask);
+
+  SetBkColor(hdcMem, crTransparent);
+
+  BitBlt(hdcMem2, 0, 0, bm.bmWidth, bm.bmHeight, hdcMem, 0, 0, SRCCOPY);
+
+  BitBlt(hdcMem, 0, 0, bm.bmWidth, bm.bmHeight, hdcMem2, 0, 0, SRCINVERT);
+
+  DeleteDC(hdcMem);
+  DeleteDC(hdcMem2);
+
+  return hbmMask;
+}
+
+void DrawBall(HDC hdc, RECT* prc){
+  HDC hdcBuffer = CreateCompatibleDC(hdc);
+  HBITMAP hbmBuffer = CreateCompatibleBitmap(hdc, prc->right, prc->bottom);
+  HBITMAP hbmOldBuffer = (HBITMAP)SelectObject(hdcBuffer, hbmBuffer);
+
+  HDC hdcMem = CreateCompatibleDC(hdc);
+  HBITMAP hbmOld;
+
+
+  FillRect(hdcBuffer, prc, (HBRUSH)GetStockObject(WHITE_BRUSH));
+
+  //Enter in a cycle to drow all the balls in the buffer
+  for(int i = 1; i <= iNumberOfBalls; i ++){
+    hbmOld = (HBITMAP)SelectObject(hdcMem, hbmMask[i]);
+
+    BitBlt(hdcBuffer, BallInfo[i].x, BallInfo[i].y, BallInfo[i].width, BallInfo[i].height, hdcMem, 0, 0, SRCAND);
+
+    SelectObject(hdcMem, hbmBall[i]);
+    BitBlt(hdcBuffer, BallInfo[i].x, BallInfo[i].y, BallInfo[i].width, BallInfo[i].height, hdcMem, 0, 0, SRCPAINT);
+  }
+
+  //Swap the buffer
+  BitBlt(hdc, 0, 0, prc->right, prc->bottom, hdcBuffer, 0, 0, SRCCOPY);
+
+  SelectObject(hdcMem, hbmOld);
+  DeleteDC(hdcMem);
+
+  SelectObject(hdcBuffer, hbmOldBuffer);
+  DeleteDC(hdcBuffer);
+  DeleteObject(hbmBuffer);
+}
+
+void UpdateBall(RECT* prc) {
+  for(int i = 1; i <= iNumberOfBalls; i ++) {
+    BallInfo[i].x += BallInfo[i].dx;
+    BallInfo[i].y += BallInfo[i].dy;
+
+    if(BallInfo[i].x < 0) {
+      BallInfo[i].x = 0;
+      BallInfo[i].dx = iBallSpeed;
+       // add a new ball(make an effect of splitting one ball into 2 balls)
+      BallInfo[iNumberOfBalls+1].x = 0;
+      BallInfo[iNumberOfBalls+1].y = BallInfo[i].y ;
+      BallInfo[iNumberOfBalls+1].dx = iBallSpeed;
+      BallInfo[iNumberOfBalls+1].dy = -1 * BallInfo[i].dy;
+      AddOneBall();
+    }  else if(BallInfo[i].x + BallInfo[i].width > prc->right) {
+      BallInfo[i].x = prc->right - BallInfo[i].width;
+      BallInfo[i].dx = -iBallSpeed;
+      // add a new ball(make an effect of splitting one ball into 2 balls)
+      BallInfo[iNumberOfBalls+1].x = prc->right - BallInfo[i].width;
+      BallInfo[iNumberOfBalls+1].y = BallInfo[i].y;
+      BallInfo[iNumberOfBalls+1].dy = -1 * BallInfo[i].dy;
+      BallInfo[iNumberOfBalls+1].dx = -iBallSpeed;
+      AddOneBall();
+    }
+
+    if(BallInfo[i].y < 0) { // cheching on y-axis
+      BallInfo[i].y = 0;
+      BallInfo[i].dy = iBallSpeed;
+      // add a new ball(make an effect of splitting one ball into 2 balls)
+      BallInfo[iNumberOfBalls+1].y = 0;                    // y position of the new ball
+      BallInfo[iNumberOfBalls+1].x = BallInfo[i].x;        // x position remains the same
+      BallInfo[iNumberOfBalls+1].dy = iBallSpeed;          // on y-axis the direction and speed remains the same
+      BallInfo[iNumberOfBalls+1].dx = -1 * BallInfo[i].dx; // on x-axis the direction inverts
+      AddOneBall();
+        //BallInfo[i].empty = true;
+        //ShiftBallsInArray();
+        //DeleteObject(hbmBall[iNumberOfBalls]);
+        //DeleteObject(hbmMask[iNumberOfBalls]);
+       // iNumberOfBalls -= 1;
+    }  else if(BallInfo[i].y + BallInfo[i].height > prc->bottom) {
+      BallInfo[i].y = prc->bottom - BallInfo[i].height;
+      BallInfo[i].dy = -iBallSpeed;
+       // add a new ball(make an effect of splitting one ball into 2 balls)
+      BallInfo[iNumberOfBalls+1].y = prc->bottom - BallInfo[i].height;
+      BallInfo[iNumberOfBalls+1].x = BallInfo[i].x;
+      BallInfo[iNumberOfBalls+1].dy = -iBallSpeed;
+      BallInfo[iNumberOfBalls+1].dx = -1 * BallInfo[i].dx;
+      AddOneBall();
+    }
+
+  }
+}
+
+void AddOneBall(){
+      if(iNumberOfBalls < 8){ iNumberOfBalls  += 1;}
+      bNumberOfBallsChanged = true;
+}
+
+void ShiftBallsInArray () {
+    for(int i = 1; i <= iNumberOfBalls; i ++) {
+        if(BallInfo[i].empty == true){
+            for(int j = i; j <= iNumberOfBalls-1; j ++) {
+                BallInfo[j] = BallInfo[j+1];
+            }
+        }
+    }
 }
